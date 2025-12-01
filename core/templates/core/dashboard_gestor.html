@@ -1,0 +1,87 @@
+{% extends 'core/base.html' %} {% block title %}Dashboard Gestor{% endblock %} {% block content %}
+    <h2>Dashboard do Gestor</h2>
+
+    <section>
+        <h3>Projetos Aguardando Designação de Relator</h3>
+        {% if projetos_para_designar %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Título / CAAE</th> 
+                        <th>Pesquisador</th>   
+                        <th>Submetido em</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for projeto in projetos_para_designar %}
+                        <tr>
+                            <td>
+                                <strong>{{ projeto.titulo }}</strong><br>
+                                <small>CAAE: {{ projeto.caae }}</small>
+                            </td>
+                            <td>{{ projeto.pesquisador.nome }}</td> 
+                            <td>{{ projeto.data_submissao|date:"d/m/Y" }}</td>
+                            <td><a href="{% url 'designar_relator' projeto.pk %}">Designar Relator</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>Nenhum projeto novo aguardando designação.</p>
+        {% endif %}
+    </section>
+
+    <section>
+        <h3>Projetos em Análise (Aguardando Parecer)</h3>
+        {% if projetos_em_analise %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>Relator</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for projeto in projetos_em_analise %}
+                    <tr>
+                        <td><a href="{% url 'detalhe_projeto' projeto.pk %}">{{ projeto.titulo }}</a></td>
+                        <td>{{ projeto.relator_designado.username }}</td>
+                        <td>{{ projeto.get_status_display }}</td> </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>Nenhum projeto em análise no momento.</p>
+        {% endif %}
+    </section>
+
+    <section>
+        <h3>Projetos Concluídos (Aprovados/Reprovados)</h3>
+        {% if projetos_concluidos %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>Relator</th>
+                        <th>Status Final</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for projeto in projetos_concluidos %}
+                    <tr>
+                        <td>{{ projeto.titulo }}</td>
+                        <td>{{ projeto.relator_designado.username }}</td>
+                        <td>{{ projeto.get_status_display }}</td>
+                        <td><a href="{% url 'detalhe_projeto' projeto.pk %}">Ver Detalhes</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>Nenhum projeto concluído ainda.</p>
+        {% endif %}
+    </section>    
+{% endblock %}

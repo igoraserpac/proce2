@@ -1,0 +1,57 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Detalhes do Projeto{% endblock %}
+
+{% block content %}
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+        <h2>{{ projeto.titulo }}</h2>
+        <a href="{% url 'dashboard' %}" style="padding: 8px 16px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 4px;">Voltar</a>
+    </div>
+    
+    <div style="background: #fff; padding: 20px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 20px;">
+        <h3 style="margin-top: 0; border-bottom: 2px solid #f4f4f4; padding-bottom: 10px;">Dados do Projeto</h3>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <p><strong>Status Atual:</strong> <span style="padding: 4px 8px; background: #eee; border-radius: 4px;">{{ projeto.get_status_display }}</span></p>
+                <p><strong>CAAE:</strong> {{ projeto.caae }}</p>
+                <p><strong>Protocolo:</strong> {{ projeto.protocolo|default:"-" }}</p>
+                <p><strong>Relator Designado:</strong> {{ projeto.relator_designado.username|default:"Aguardando designação" }}</p>
+            </div>
+            <div>
+                <p><strong>Data Submissão:</strong> {{ projeto.data_submissao|date:"d/m/Y H:i" }}</p>
+                <p><strong>Data Aprovação:</strong> {{ projeto.data_aprovacao|date:"d/m/Y"|default:"-" }}</p>
+                <p><strong>Relatório Parcial:</strong> {{ projeto.rel_parc|yesno:"Recebido,Pendente" }}</p>
+                <p><strong>Relatório Final:</strong> {{ projeto.rel_final|yesno:"Recebido,Pendente" }}</p>
+            </div>
+        </div>
+
+        <h4 style="margin-top: 20px; border-bottom: 1px solid #eee;">Dados do Pesquisador Responsável</h4>
+        <p><strong>Nome:</strong> {{ projeto.pesquisador.nome }}</p>
+        <p><strong>Email:</strong> {{ projeto.pesquisador.email }}</p>
+        <p><strong>Telefone:</strong> {{ projeto.pesquisador.telefone|default:"-" }}</p>
+        
+        <h4 style="margin-top: 20px; border-bottom: 1px solid #eee;">Descrição</h4>
+        <p style="text-align: justify;">{{ projeto.descricao }}</p>
+    </div>
+
+    <h3>Histórico de Pareceres</h3>
+    {% if pareceres %}
+        {% for parecer in pareceres %}
+            <div style="background: #f9f9f9; padding: 15px; margin-bottom: 15px; border-left: 5px solid {% if parecer.decisao == 'aprovado' %}green{% elif parecer.decisao == 'reprovado' %}red{% else %}orange{% endif %}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between;">
+                    <strong>Decisão: {{ parecer.get_decisao_display }}</strong>
+                    <small>{{ parecer.data_parecer|date:"d/m/Y H:i" }}</small>
+                </div>
+                <hr style="border: 0; border-top: 1px solid #ddd;">
+                <p style="font-style: italic; color: #555;">"{{ parecer.justificativa }}"</p>
+                <div style="text-align: right; font-size: 0.9em; color: #777;">
+                    — Relator: {{ parecer.relator.username }}
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>Nenhum parecer emitido ainda.</p>
+    {% endif %}
+
+{% endblock %}

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Plataforma de Ética{% endblock %}</title>
+    
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; }
+        header { 
+            background-color: #333; 
+            color: white; 
+            padding: 10px 20px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+        header h1 { margin: 0; font-size: 24px; }
+        header a { color: #fff; text-decoration: none; padding: 8px; background-color: #555; border-radius: 4px; }
+        .container { max-width: 1200px; margin: 20px auto; padding: 20px; background-color: white; border-radius: 8px; }
+        
+        /* Estilos para as tabelas que vamos usar */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Plataforma do Conselho de Ética</h1>
+        {% if user.is_authenticated %}
+            <span>Olá, {{ user.username }}!</span>
+            <form action="{% url 'logout' %}" method="post" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" style="background:none; border:none; color:white; cursor:pointer; font-size:16px; text-decoration:underline;">
+                    Sair
+                </button>
+            </form>
+        {% endif %}
+    </header>
+
+    <main class="container">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+</body>
+</html>

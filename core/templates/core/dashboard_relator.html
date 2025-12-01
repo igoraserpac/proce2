@@ -1,0 +1,57 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Dashboard Relator{% endblock %}
+
+{% block content %}
+    <h2>Dashboard do Relator</h2>
+
+    <section>
+        <h3>Meus Projetos Aguardando Parecer</h3>
+        {% if projetos_para_analisar %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>Submetido em</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for projeto in projetos_para_analisar %}
+                    <tr>
+                        <td>{{ projeto.titulo }}</td>
+                        <td>{{ projeto.data_submissao|date:"d/m/Y H:i" }}</td>
+                        <td><a href="{% url 'dar_parecer' projeto.pk %}">Dar Parecer</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>Você não possui projetos pendentes para análise.</p>
+        {% endif %}
+    </section>
+
+    <section>
+        <h3>Histórico dos Meus Pareceres</h3>
+        {% if meus_projetos_concluidos %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>Status Final</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for projeto in meus_projetos_concluidos %}
+                    <tr>
+                        <td>{{ projeto.titulo }}</td>
+                        <td>{{ projeto.get_status_display }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>Você ainda não emitiu pareceres.</p>
+        {% endif %}
+    </section>
+{% endblock %}

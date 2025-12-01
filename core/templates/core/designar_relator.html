@@ -1,0 +1,21 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Designar Relator{% endblock %}
+
+{% block content %}
+    <h2>Designar Relator</h2>
+    <hr>
+    
+    <h3>Projeto: {{ projeto.titulo }}</h3>
+    <p>{{ projeto.descricao }}</p>
+
+    <form method="post">
+        {% csrf_token %}
+        
+        <p>Por favor, selecione um relator da lista abaixo:</p>
+        
+        {{ form.as_p }}
+
+        <button type="submit">Designar e Iniciar Análise</button>
+    </form>
+{% endblock %}
