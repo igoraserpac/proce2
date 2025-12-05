@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: proce
+    env: python
+    plan: free
+    buildCommand: |
+      pip install -r requirements.txt
+      python manage.py migrate
+      python manage.py collectstatic --noinput
+    startCommand: gunicorn proce.wsgi:application
+    envVars:
+      - key: DEBUG
+        value: False
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: proce-db
+          property: connectionString
+
+databases:
+  - name: proce-db
+    plan: free
