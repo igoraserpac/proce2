@@ -10,6 +10,7 @@ import io
 from functools import wraps
 from .models import Projeto, Pesquisador, Emenda, PlataformaBrasilService, Parecer
 from .forms import DesignarRelatorForm, ParecerForm, ProjetoForm, EmendaForm, CadastroRelatorForm
+from emails.gerenciadorEmails import GerenciadorEmails
 
 # --- DECORATORS E AUXILIARES ---
 def grupo_requerido(nome_grupo):
@@ -184,12 +185,33 @@ def dar_parecer(request, pk):
             if parecer.decisao == 'aprovado':
                 projeto.data_aprovacao = timezone.now().date()
             projeto.save()
+
+            if parecer.decisao == 'reprovado':
+                try:
+                    assunto = f"Parecer do Projeto: {projeto.titulo}"
+                    mensagem = (
+                        f"Prezado(a) {projeto.pesquisador.nome},\n\n"
+                        f"Informamos que o projeto '{projeto.titulo}' foi REPROVADO pelo Comitê de Ética.\n\n"
+                        f"Justificativa:\n{parecer.justificativa}\n\n"
+                        "Atenciosamente,\nComitê de Ética"
+                    )
+                    
+                    # Usa o método genérico envia_email do seu Gerenciador
+                    GerenciadorEmails.envia_email(
+                        email_destinatario=projeto.pesquisador.email,
+                        assuntoEmail=assunto,
+                        mensagemEmail=mensagem,
+                        projeto=projeto
+                    )
+                except Exception as e:
+                    print(f"Erro ao enviar email de reprovação: {e}")
             
             return redirect('dashboard')
     else:
         form = ParecerForm()
 
-    return render(request, 'core/dar_parecer.html', {'form': form, 'projeto': projeto})
+    contexto = {'form': form, 'projeto': projeto}
+    return render(request, 'core/dar_parecer.html', contexto)
 
 @login_required
 def cadastrar_emenda(request, projeto_id):
