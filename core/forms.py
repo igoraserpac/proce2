@@ -1,6 +1,8 @@
 from django import forms
 from django.contrib.auth.models import User, Group
 from .models import Projeto, Pesquisador, Emenda, Parecer
+from django.contrib.auth.forms import PasswordResetForm
+from django.contrib.auth import get_user_model
 
 class DesignarRelatorForm(forms.ModelForm):
     relator_designado = forms.ModelChoiceField(
@@ -60,10 +62,10 @@ class EmendaForm(forms.ModelForm):
             'arquivo_pdf': forms.FileInput(attrs={'class': 'form-control'}),
         }
 
+
 class CadastroRelatorForm(forms.ModelForm):
     """
     Formulário para o Gestor cadastrar um novo Relator.
-    Pede apenas Nome e E-mail.
     """
     first_name = forms.CharField(label="Nome Completo", required=True, widget=forms.TextInput(attrs={'class': 'form-control'}))
     email = forms.EmailField(label="E-mail", required=True, widget=forms.EmailInput(attrs={'class': 'form-control'}))
@@ -83,10 +85,26 @@ class CadastroRelatorForm(forms.ModelForm):
         
         user.username = self.cleaned_data['email']
         
-        user.set_password('123456') 
+        user.set_unusable_password() 
         
         if commit:
             user.save()
             grupo_relatores, _ = Group.objects.get_or_create(name='Relatores')
             user.groups.add(grupo_relatores)
         return user
+    
+
+class CustomPasswordResetForm(PasswordResetForm):
+    def get_users(self, email):
+        """
+        Permite recuperar senha de usuários que não têm senha definida (set_unusable_password).
+        """
+        UserModel = get_user_model()
+        email_field_name = UserModel.get_email_field_name()
+        active_users = UserModel._default_manager.filter(
+            **{
+                '%s__iexact' % email_field_name: email,
+                'is_active': True,
+            }
+        )
+        return iter(active_users)

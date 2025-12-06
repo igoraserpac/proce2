@@ -13,17 +13,27 @@ from .forms import DesignarRelatorForm, ParecerForm, ProjetoForm, EmendaForm, Ca
 from emails.gerenciadorEmails import GerenciadorEmails
 
 # --- DECORATORS E AUXILIARES ---
-def grupo_requerido(nome_grupo):
+def grupo_requerido(grupos):
+    """
+    Aceita uma string ou uma lista.
+    Verifica se o usuário pertence a um dos grupos.
+    """
+    if isinstance(grupos, str):
+        grupos = [grupos]
+        
     def decorator(view_func):
         @wraps(view_func)
         def _wrapped_view(request, *args, **kwargs):
             if not request.user.is_authenticated:
                 return redirect('login')
-            if not request.user.groups.filter(name=nome_grupo).exists():
-                return HttpResponseForbidden("Você não tem permissão para acessar esta página.")
-            return view_func(request, *args, **kwargs)
+            
+            if request.user.is_superuser or request.user.groups.filter(name__in=grupos).exists():
+                return view_func(request, *args, **kwargs)
+            
+            return HttpResponseForbidden("Você não tem permissão para acessar esta página.")
         return _wrapped_view
     return decorator
+
 
 def is_grupo(user, nome_grupo):
     return user.groups.filter(name=nome_grupo).exists()
@@ -65,7 +75,6 @@ def processar_csv(csv_file):
         print(f"Erro no CSV: {e}")
         return 0
 
-# --- VIEWS PRINCIPAIS ---
 
 @login_required
 def dashboard(request):
@@ -79,9 +88,12 @@ def dashboard(request):
         projetos_em_analise = Projeto.objects.filter(status='em_analise').order_by('-data_submissao')
         projetos_concluidos = Projeto.objects.filter(status__in=['aprovado', 'reprovado']).order_by('-data_submissao')
         
-        # Busca Relatores e seus projetos
-        relatores_stats = User.objects.filter(groups__name='Relatores').prefetch_related('projetos_designados')
-        
+        relatores_stats = User.objects.filter(groups__name='Relatores').prefetch_related(
+        'projetos_designados',
+        'projetos_designados__pareceres'
+        )
+    
+      
         contexto = {
             'projetos_para_designar': projetos_novos_query, 
             'projetos_em_analise': projetos_em_analise,
@@ -166,52 +178,37 @@ def designar_relator(request, pk):
     return render(request, 'core/designar_relator.html', {'form': form, 'projeto': projeto})
 
 @login_required
-@grupo_requerido('Relatores')
+@grupo_requerido(['Relatores', 'Gestores']) # 1. Permite Gestores no Decorator
 def dar_parecer(request, pk):
     projeto = get_object_or_404(Projeto, pk=pk)
 
-    if request.user != projeto.relator_designado:
-        return HttpResponseForbidden("Você não é o relator deste projeto.")
+    if not is_gestor(request.user):
+        if request.user != projeto.relator_designado:
+            return HttpResponseForbidden("Você não é o relator designado para este projeto.")
 
     if request.method == 'POST':
         form = ParecerForm(request.POST)
         if form.is_valid():
             parecer = form.save(commit=False)
             parecer.projeto = projeto
-            parecer.relator = request.user
+            
+            parecer.relator = request.user 
+            
             parecer.save()
 
             projeto.status = parecer.decisao 
             if parecer.decisao == 'aprovado':
                 projeto.data_aprovacao = timezone.now().date()
+            else:
+                projeto.data_aprovacao = None
+                
             projeto.save()
-
-            if parecer.decisao == 'reprovado':
-                try:
-                    assunto = f"Parecer do Projeto: {projeto.titulo}"
-                    mensagem = (
-                        f"Prezado(a) {projeto.pesquisador.nome},\n\n"
-                        f"Informamos que o projeto '{projeto.titulo}' foi REPROVADO pelo Comitê de Ética.\n\n"
-                        f"Justificativa:\n{parecer.justificativa}\n\n"
-                        "Atenciosamente,\nComitê de Ética"
-                    )
-                    
-                    # Usa o método genérico envia_email do seu Gerenciador
-                    GerenciadorEmails.envia_email(
-                        email_destinatario=projeto.pesquisador.email,
-                        assuntoEmail=assunto,
-                        mensagemEmail=mensagem,
-                        projeto=projeto
-                    )
-                except Exception as e:
-                    print(f"Erro ao enviar email de reprovação: {e}")
             
             return redirect('dashboard')
     else:
         form = ParecerForm()
 
-    contexto = {'form': form, 'projeto': projeto}
-    return render(request, 'core/dar_parecer.html', contexto)
+    return render(request, 'core/dar_parecer.html', {'form': form, 'projeto': projeto})
 
 @login_required
 def cadastrar_emenda(request, projeto_id):

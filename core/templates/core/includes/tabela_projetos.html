@@ -8,15 +8,12 @@
                 <thead>
                     <tr>
                         <th>Título / CAAE</th>
-                        <!-- Cabeçalho Dinâmico -->
                         {% if tipo == 'aguardando' %}
                             <th>Pesquisador</th>
                         {% else %}
                             <th>Relator</th>
                         {% endif %}
-                        
                         <th>Submissão</th>
-                        
                         {% if tipo == 'concluido' %}
                             <th>Resultado</th>
                             <th>Data</th>
@@ -30,8 +27,6 @@
                     <tr data-titulo="{{ projeto.titulo|lower }}" 
                         data-caae="{{ projeto.caae|lower }}"
                         data-pesquisador="{{ projeto.pesquisador.nome|lower }}"
-                        
-                        {# CORREÇÃO AQUI: Verifica se relator existe antes de acessar #}
                         data-relator-nome="{% if projeto.relator_designado %}{{ projeto.relator_designado.first_name|default:projeto.relator_designado.username|lower }}{% endif %}"
                         data-relator-email="{% if projeto.relator_designado %}{{ projeto.relator_designado.email|lower }}{% endif %}">
                         
@@ -40,7 +35,6 @@
                             <small class="text-muted">{{ projeto.caae }}</small>
                         </td>
 
-                        <!-- Coluna Pessoa Dinâmica -->
                         <td>
                             {% if tipo == 'aguardando' %}
                                 {{ projeto.pesquisador.nome }}
@@ -56,12 +50,26 @@
 
                         <td>{{ projeto.data_submissao|date:"d/m/Y" }}</td>
 
-                        <!-- Coluna Ação/Resultado Dinâmica -->
                         <td>
+                            <!-- 1. Projetos Novos (Sem Relator) -->
                             {% if tipo == 'aguardando' %}
                                 <a href="{% url 'designar_relator' projeto.id %}" class="btn btn-sm btn-outline-dark">Designar Relator</a>
+                            
+                            <!-- 2. Projetos Em Análise -->
                             {% elif tipo == 'analise' %}
-                                <a href="{% url 'designar_relator' projeto.id %}" class="btn btn-sm btn-outline-secondary">Alterar Relator</a>
+                                <div class="btn-group" role="group">
+                                    <!-- Botão de Alterar Relator -->
+                                    <a href="{% url 'designar_relator' projeto.id %}" class="btn btn-sm btn-outline-secondary" title="Trocar Relator">
+                                        <i class="bi bi-person-gear"></i> Alterar
+                                    </a>
+                                    
+                                    <!-- >>> BOTÃO PARA O GESTOR DAR O PARECER <<< -->
+                                    <a href="{% url 'dar_parecer' projeto.id %}" class="btn btn-sm btn-dark" title="Definir Parecer Diretamente">
+                                        <i class="bi bi-gavel"></i> Parecer
+                                    </a>
+                                </div>
+
+                            <!-- 3. Projetos Concluídos -->
                             {% elif tipo == 'concluido' %}
                                 {% if projeto.status == 'aprovado' %}
                                     <span class="badge bg-success">Aprovado</span>
