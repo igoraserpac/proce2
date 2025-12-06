@@ -14,13 +14,14 @@
                     <i class="bi bi-arrow-left"></i> Voltar
                 </a>
                 
-                <!-- Botão de Nova Emenda -->
+                <!-- Botão de Nova Emenda (Visível para todos ou restrito, conforme sua regra) -->
                 <a href="{% url 'cadastrar_emenda' projeto.id %}" class="btn btn-warning ms-2">
                     <i class="bi bi-plus-circle"></i> Nova Emenda
                 </a>
             </div>
         </div>
 
+        <!-- CARTÃO DE DETALHES DO PROJETO -->
         <div class="card mb-4 shadow-sm">
             <div class="card-header bg-light">
                 <strong>Dados do Projeto</strong>
@@ -63,7 +64,7 @@
             </div>
         </div>
 
-        <!-- SEÇÃO: HISTÓRICO DE PARECERES  -->
+        <!-- SEÇÃO: HISTÓRICO DE PARECERES (AQUI ESTÁ A JUSTIFICATIVA) -->
         <h4 class="mb-3"><i class="bi bi-clock-history"></i> Histórico de Pareceres</h4>
         
         {% if pareceres %}
@@ -92,19 +93,25 @@
             </div>
         {% endif %}
 
-        <!-- SEÇÃO: EMENDAS -->
+        <!-- SEÇÃO: EMENDAS ATUALIZADA -->
         {% if projeto.emendas.all %}
             <h4 class="mt-5 mb-3"><i class="bi bi-paperclip"></i> Emendas</h4>
             <div class="list-group mb-5">
                 {% for emenda in projeto.emendas.all %}
                     <div class="list-group-item list-group-item-action" aria-current="true">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h5 class="mb-1">{{ emenda.titulo }}</h5>
+                        <div class="d-flex w-100 justify-content-between align-items-center">
+                            <h5 class="mb-1">
+                                {{ emenda.titulo }}
+                                <!-- Badge de Status da Emenda -->
+                                <span class="badge {% if emenda.status == 'aprovada' %}bg-success{% elif emenda.status == 'reprovada' %}bg-danger{% else %}bg-warning text-dark{% endif %} ms-2" style="font-size: 0.8em;">
+                                    {{ emenda.get_status_display }}
+                                </span>
+                            </h5>
                             <small>{{ emenda.data_submissao|date:"d/m/Y" }}</small>
                         </div>
                         <p class="mb-1">{{ emenda.descricao }}</p>
                         {% if emenda.arquivo_pdf %}
-                            <a href="{{ emenda.arquivo_pdf.url }}" target="_blank" class="badge bg-primary text-decoration-none">
+                            <a href="{{ emenda.arquivo_pdf.url }}" target="_blank" class="badge bg-primary text-decoration-none mt-2">
                                 <i class="bi bi-download"></i> PDF da Emenda
                             </a>
                         {% endif %}

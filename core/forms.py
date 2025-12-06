@@ -62,6 +62,25 @@ class EmendaForm(forms.ModelForm):
             'arquivo_pdf': forms.FileInput(attrs={'class': 'form-control'}),
         }
 
+class ParecerEmendaForm(forms.ModelForm):
+    """
+    Formulário para dar parecer em uma Emenda.
+    """
+    class Meta:
+        model = Emenda
+        fields = ['status', 'justificativa']
+        widgets = {
+            'status': forms.RadioSelect(choices=[('aprovada', 'Aprovada'), ('reprovada', 'Reprovada')]),
+            'justificativa': forms.Textarea(attrs={'rows': 5, 'class': 'form-control'}),
+        }
+        labels = {
+            'status': 'Decisão da Emenda',
+            'justificativa': 'Justificativa do Parecer'
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['justificativa'].required = True
 
 class CadastroRelatorForm(forms.ModelForm):
     """

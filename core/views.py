@@ -11,6 +11,9 @@ from functools import wraps
 from .models import Projeto, Pesquisador, Emenda, PlataformaBrasilService, Parecer
 from .forms import DesignarRelatorForm, ParecerForm, ProjetoForm, EmendaForm, CadastroRelatorForm
 from emails.gerenciadorEmails import GerenciadorEmails
+from itertools import chain
+from operator import attrgetter
+from .forms import ParecerEmendaForm 
 
 # --- DECORATORS E AUXILIARES ---
 def grupo_requerido(grupos):
@@ -76,49 +79,74 @@ def processar_csv(csv_file):
         return 0
 
 
-@login_required
+login_required
 def dashboard(request):
-    """
-    Página inicial (Dashboard) que muda conforme o grupo do usuário.
-    """
-    
     # 1. VISÃO DO GESTOR
     if is_gestor(request.user):
-        projetos_novos_query = Projeto.objects.filter(status='novo').order_by('-data_submissao')
-        projetos_em_analise = Projeto.objects.filter(status='em_analise').order_by('-data_submissao')
-        projetos_concluidos = Projeto.objects.filter(status__in=['aprovado', 'reprovado']).order_by('-data_submissao')
+        # A. Aguardando Designação (Apenas Projetos Novos)
+        itens_novos = list(Projeto.objects.filter(status='novo'))
+        for i in itens_novos: i.tipo_item = 'P'
+
+        # B. Em Análise (Projetos em análise + Emendas pendentes)
+        projetos_analise = list(Projeto.objects.filter(status='em_analise'))
+        for p in projetos_analise: p.tipo_item = 'P'
         
-        relatores_stats = User.objects.filter(groups__name='Relatores').prefetch_related(
-        'projetos_designados',
-        'projetos_designados__pareceres'
+        emendas_pendentes = list(Emenda.objects.filter(status='pendente'))
+        for e in emendas_pendentes: e.tipo_item = 'E'
+        
+        itens_em_analise = sorted(
+            chain(projetos_analise, emendas_pendentes),
+            key=attrgetter('data_submissao'),
+            reverse=True
         )
-    
-      
+
+        # C. Concluídos (Projetos finalizados + Emendas finalizadas)
+        projetos_concluidos = list(Projeto.objects.filter(status__in=['aprovado', 'reprovado']))
+        for p in projetos_concluidos: p.tipo_item = 'P'
+        
+        emendas_concluidas = list(Emenda.objects.filter(status__in=['aprovada', 'reprovada']))
+        for e in emendas_concluidas: e.tipo_item = 'E'
+
+        itens_concluidos = sorted(
+            chain(projetos_concluidos, emendas_concluidas),
+            key=attrgetter('data_submissao'),
+            reverse=True
+        )
+
+        relatores_stats = User.objects.filter(groups__name='Relatores').prefetch_related('projetos_designados')
+        
         contexto = {
-            'projetos_para_designar': projetos_novos_query, 
-            'projetos_em_analise': projetos_em_analise,
-            'projetos_concluidos': projetos_concluidos,
+            'itens_novos': itens_novos,
+            'itens_em_analise': itens_em_analise,
+            'itens_concluidos': itens_concluidos,
             'relatores_stats': relatores_stats,
         }
         return render(request, 'core/dashboard_gestor.html', contexto)
 
     # 2. VISÃO DO RELATOR
     elif is_relator(request.user):
-        projetos_para_analisar = Projeto.objects.filter(
-            relator_designado=request.user, 
-            status='em_analise'
-        )
-        meus_projetos_concluidos = Projeto.objects.filter(
-            relator_designado=request.user
-        ).exclude(status__in=['novo', 'em_analise'])
+        meus_projetos = list(Projeto.objects.filter(relator_designado=request.user, status='em_analise'))
+        for p in meus_projetos: p.tipo_item = 'P'
+
+        minhas_emendas = list(Emenda.objects.filter(projeto__relator_designado=request.user, status='pendente'))
+        for e in minhas_emendas: e.tipo_item = 'E'
+
+        itens_para_analisar = sorted(chain(meus_projetos, minhas_emendas), key=attrgetter('data_submissao'), reverse=True)
+
+        hist_projetos = list(Projeto.objects.filter(relator_designado=request.user).exclude(status__in=['novo', 'em_analise']))
+        for p in hist_projetos: p.tipo_item = 'P'
+        
+        hist_emendas = list(Emenda.objects.filter(projeto__relator_designado=request.user).exclude(status='pendente'))
+        for e in hist_emendas: e.tipo_item = 'E'
+
+        itens_concluidos = sorted(chain(hist_projetos, hist_emendas), key=attrgetter('data_submissao'), reverse=True)
 
         contexto = {
-            'projetos_para_analisar': projetos_para_analisar,
-            'meus_projetos_concluidos': meus_projetos_concluidos,
+            'projetos_para_analisar': itens_para_analisar, # Mantive o nome antigo aqui para não quebrar o template do relator
+            'meus_projetos_concluidos': itens_concluidos,
         }
         return render(request, 'core/dashboard_relator.html', contexto)
     
-    # 3. SEM GRUPO
     else:
         return render(request, 'core/dashboard_generico.html', {'mensagem_erro': 'Usuário sem grupo definido.'})
 
@@ -291,3 +319,36 @@ def exportar_relatores(request):
             ])
             
     return response
+
+@login_required
+@grupo_requerido(['Relatores', 'Gestores'])
+def dar_parecer_emenda(request, pk):
+    emenda = get_object_or_404(Emenda, pk=pk)
+    
+    # Segurança: Se não for gestor, deve ser o relator do projeto pai
+    if not is_gestor(request.user):
+        if request.user != emenda.projeto.relator_designado:
+            return HttpResponseForbidden("Você não é o relator deste projeto.")
+
+    if request.method == 'POST':
+        form = ParecerEmendaForm(request.POST, instance=emenda)
+        if form.is_valid():
+            emenda = form.save(commit=False)
+            emenda.relator_parecer = request.user
+            emenda.data_parecer = timezone.now()
+            emenda.save()
+            return redirect('dashboard')
+    else:
+        form = ParecerEmendaForm(instance=emenda)
+
+    return render(request, 'core/dar_parecer_emenda.html', {'form': form, 'emenda': emenda})
+
+@login_required
+def detalhe_emenda(request, pk):
+    emenda = get_object_or_404(Emenda, pk=pk)
+    
+    if is_relator(request.user) and not is_gestor(request.user):
+        if emenda.projeto.relator_designado != request.user:
+            return HttpResponseForbidden("Você não tem permissão para visualizar esta emenda.")
+
+    return render(request, 'core/detalhe_emenda.html', {'emenda': emenda})
