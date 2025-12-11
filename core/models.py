@@ -110,7 +110,7 @@ class Parecer(models.Model):
 
     projeto = models.ForeignKey(Projeto, on_delete=models.CASCADE, related_name='pareceres')
     relator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pareceres_dados')
-    data_parecer = models.DateTimeField(auto_now_add=True, verbose_name="Data do Parecer")
+    data_parecer = models.DateTimeField(default=timezone.now, verbose_name="Data do Parecer")
     decisao = models.CharField(max_length=20, choices=DECISAO_CHOICES)
     justificativa = models.TextField()
 

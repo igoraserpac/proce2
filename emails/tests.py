@@ -2,51 +2,78 @@ from django.test import TestCase
 from django.utils import timezone
 from datetime import timedelta
 from decouple import config
+from django.core import mail
+from unittest.mock import patch
 
-from emails.models import Email
+from emails.gerenciadorEmails import GerenciadorEmails, TipoRelatorio
 from emails.management.commands.verificar_rotinas_diarias import Command
-from core.models import Projeto, Pesquisador
+from core.models import Projeto, Pesquisador, Parecer, User
 
-class RegistroLogTestCase(TestCase):
+class RotinaDiariaTest(TestCase):
     def setUp(self):
-        self.pesquisador1 = Pesquisador.objects.create(nome="Teste1", email=config('EMAIL_TEST_1'), telefone="123456789")
-        self.pesquisador2 = Pesquisador.objects.create(nome="Teste2", email=config('EMAIL_TEST_2'), telefone="987654321")
-        self.pesquisador3 = Pesquisador.objects.create(nome="Teste3", email=config('EMAIL_TEST_3'), telefone="987612345")
-        self.projeto1 = Projeto.objects.create(titulo="Projeto Teste 1", pesquisador=self.pesquisador1)
-        self.projeto2 = Projeto.objects.create(titulo="Projeto Teste 2", pesquisador=self.pesquisador1)
-        self.projeto3 = Projeto.objects.create(titulo="Projeto Teste 3", pesquisador=self.pesquisador2)
-        self.projeto4 = Projeto.objects.create(titulo="Projeto Teste 4", pesquisador=self.pesquisador2)
-        self.projeto5 = Projeto.objects.create(titulo="Projeto Teste 5", pesquisador=self.pesquisador3)
-
-
         hoje = timezone.now()
 
-        self.data_a = hoje - timedelta(days=2)
-        self.data_b = hoje - timedelta(days=1)
-        self.data_c = hoje
+        self.pesq = Pesquisador.objects.create(
+            nome="Teste",
+            email="Teste@Teste.com",
+            telefone="0000",
+        )
 
-        self.log1 = Logs.objects.create(
-            nome_log="A",
-            processo="proc1",
-            parametros_usados={"x": 10},
-            projeto=self.projeto,
-            concluiu=True,
-            horario=self.data_a
+        # Projeto para relatório parcial (180 dias)
+        self.projeto_180 = Projeto.objects.create(
+            titulo="P180",
+            pesquisador=self.pesq,
+            data_submissao=hoje - timedelta(days=180),
+            data_aprovacao=hoje - timedelta(days=180),
+            status="aprovado",
+            rel_parc=False,
+            caae=180
         )
-        self.log2 = Logs.objects.create(
-            nome_log="B",
-            processo="proc2",
-            parametros_usados={"x": 20, "z": "Hello, World!"},
-            projeto=self.projeto,
-            concluiu=False,
-            msgErro="Falha",
-            horario=self.data_b
+
+        # Projeto para relatório final (365 dias)
+        self.projeto_365 = Projeto.objects.create(
+            titulo="P365",
+            pesquisador=self.pesq,
+            data_submissao=hoje - timedelta(days=365),
+            data_aprovacao=hoje - timedelta(days=365),
+            status="aprovado",
+            rel_final=False,
+            caae=365
         )
-        self.log3 = Logs.objects.create(
-            nome_log="A",
-            processo="proc3",
-            parametros_usados={"y": 99},
-            projeto=None,
-            concluiu=True,
-            horario=self.data_c
+
+        # Projeto pendente com parecer de 26 dias atrás (vai avisar)
+        self.projeto_pend = Projeto.objects.create(
+            titulo="Pend",
+            pesquisador=self.pesq,
+            data_submissao=hoje,
+            status="pendente"
         )
+
+        self.relator = User.objects.create(username="relator")
+
+        Parecer.objects.create(
+            projeto=self.projeto_pend,
+            relator=self.relator,
+            decisao="pendente",
+            justificativa="Um teste",
+            data_parecer=hoje - timedelta(days=26)
+        )
+
+    def test_rotina(self):
+        with patch("emails.gerenciadorEmails.GerenciadorEmails.notificacao_relatorio_aprovado") as mock_aprovado, \
+             patch("emails.gerenciadorEmails.GerenciadorEmails.notificacao_relatorio_pendente") as mock_pendente:
+
+            Command().handle()
+
+            # Assert para projetos aprovados
+            self.assertTrue(mock_aprovado.called)
+
+            # Assert para pendentes
+            self.assertTrue(mock_pendente.called)
+
+    def test_envio(self):
+            GerenciadorEmails.notificacao_relatorio_aprovado(self.pesq.nome, self.projeto_180.titulo, self.pesq.email, 185, TipoRelatorio.PARCIAL)
+            GerenciadorEmails.notificacao_relatorio_pendente(self.pesq.nome, self.projeto_pend.titulo, self.pesq.email, 4)
+
+            # Assert para verificar o número de emails enviados
+            self.assertEqual(len(mail.outbox), 2)
