@@ -3,44 +3,123 @@
 {% block title %}{{ projeto.titulo }}{% endblock %}
 
 {% block content %}
-<div class="card p-4 mb-4">
-    <div class="d-flex justify-content-between">
-        <h2>{{ projeto.titulo }}</h2>
-        <div>
-            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Voltar</a>
-            <a href="{% url 'cadastrar_emenda' projeto.id %}" class="btn btn-warning">Nova Emenda</a>
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        
+        <!-- CABEÇALHO E BOTÕES -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="mb-0">{{ projeto.titulo }}</h2>
+            <div>
+                <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </a>
+                
+                <!-- Botão de Nova Emenda (Visível para todos ou restrito, conforme sua regra) -->
+                <a href="{% url 'cadastrar_emenda' projeto.id %}" class="btn btn-warning ms-2">
+                    <i class="bi bi-plus-circle"></i> Nova Emenda
+                </a>
+            </div>
         </div>
-    </div>
-    <hr>
-    <p><strong>CAAE:</strong> {{ projeto.caae }}</p>
-    <p><strong>Pesquisador:</strong> {{ projeto.pesquisador.nome }} ({{ projeto.pesquisador.email }})</p>
-    <p><strong>Status:</strong> {{ projeto.get_status_display }}</p>
-    
-    {% if projeto.arquivo_pdf %}
-        <p><strong>Arquivo:</strong> <a href="{{ projeto.arquivo_pdf.url }}" target="_blank">Baixar PDF</a></p>
-    {% endif %}
-    
-    <div class="bg-light p-3 rounded">
-        <h5>Descrição</h5>
-        <p>{{ projeto.descricao }}</p>
+
+        <!-- CARTÃO DE DETALHES DO PROJETO -->
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light">
+                <strong>Dados do Projeto</strong>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Status:</strong> 
+                            <span class="badge {% if projeto.status == 'aprovado' %}bg-success{% elif projeto.status == 'reprovado' %}bg-danger{% else %}bg-info{% endif %}">
+                                {{ projeto.get_status_display }}
+                            </span>
+                        </p>
+                        <p class="mb-1"><strong>CAAE:</strong> {{ projeto.caae }}</p>
+                        <p class="mb-1"><strong>Protocolo:</strong> {{ projeto.protocolo|default:"-" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Data Submissão:</strong> {{ projeto.data_submissao|date:"d/m/Y H:i" }}</p>
+                        <p class="mb-1"><strong>Relator:</strong> {{ projeto.relator_designado.username|default:"Não designado" }}</p>
+                    </div>
+                </div>
+
+                <hr>
+
+                <h5 class="text-muted mb-3">Pesquisador</h5>
+                <p class="mb-1"><strong>Nome:</strong> {{ projeto.pesquisador.nome }}</p>
+                <p class="mb-1"><strong>E-mail:</strong> {{ projeto.pesquisador.email }}</p>
+                
+                {% if projeto.arquivo_pdf %}
+                    <div class="mt-4">
+                        <a href="{{ projeto.arquivo_pdf.url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-file-earmark-pdf-fill"></i> Baixar PDF do Projeto
+                        </a>
+                    </div>
+                {% endif %}
+                
+                <div class="mt-4 p-3 bg-light rounded border">
+                    <h6>Descrição:</h6>
+                    <p class="mb-0 text-justify">{{ projeto.descricao|linebreaksbr }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SEÇÃO: HISTÓRICO DE PARECERES (AQUI ESTÁ A JUSTIFICATIVA) -->
+        <h4 class="mb-3"><i class="bi bi-clock-history"></i> Histórico de Pareceres</h4>
+        
+        {% if pareceres %}
+            {% for parecer in pareceres %}
+                <div class="card mb-3 border-{% if parecer.decisao == 'aprovado' %}success{% elif parecer.decisao == 'reprovado' %}danger{% else %}secondary{% endif %}">
+                    <div class="card-header {% if parecer.decisao == 'aprovado' %}bg-success{% elif parecer.decisao == 'reprovado' %}bg-danger{% else %}bg-secondary{% endif %} text-white d-flex justify-content-between align-items-center">
+                        <span>
+                            <i class="bi bi-{% if parecer.decisao == 'aprovado' %}check-circle{% elif parecer.decisao == 'reprovado' %}x-circle{% else %}question-circle{% endif %}"></i>
+                            <strong>Decisão: {{ parecer.get_decisao_display }}</strong>
+                        </span>
+                        <small>{{ parecer.data_parecer|date:"d/m/Y H:i" }}</small>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Relator: {{ parecer.relator.first_name|default:parecer.relator.username }}</h6>
+                        <hr>
+                        <div class="p-3 bg-light rounded fst-italic border-start border-4 border-{% if parecer.decisao == 'aprovado' %}success{% elif parecer.decisao == 'reprovado' %}danger{% else %}secondary{% endif %}">
+                            <strong class="d-block mb-2 not-italic">Justificativa:</strong>
+                            "{{ parecer.justificativa }}"
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="alert alert-secondary text-center">
+                Nenhum parecer foi emitido para este projeto até o momento.
+            </div>
+        {% endif %}
+
+        <!-- SEÇÃO: EMENDAS ATUALIZADA -->
+        {% if projeto.emendas.all %}
+            <h4 class="mt-5 mb-3"><i class="bi bi-paperclip"></i> Emendas</h4>
+            <div class="list-group mb-5">
+                {% for emenda in projeto.emendas.all %}
+                    <div class="list-group-item list-group-item-action" aria-current="true">
+                        <div class="d-flex w-100 justify-content-between align-items-center">
+                            <h5 class="mb-1">
+                                {{ emenda.titulo }}
+                                <!-- Badge de Status da Emenda -->
+                                <span class="badge {% if emenda.status == 'aprovada' %}bg-success{% elif emenda.status == 'reprovada' %}bg-danger{% else %}bg-warning text-dark{% endif %} ms-2" style="font-size: 0.8em;">
+                                    {{ emenda.get_status_display }}
+                                </span>
+                            </h5>
+                            <small>{{ emenda.data_submissao|date:"d/m/Y" }}</small>
+                        </div>
+                        <p class="mb-1">{{ emenda.descricao }}</p>
+                        {% if emenda.arquivo_pdf %}
+                            <a href="{{ emenda.arquivo_pdf.url }}" target="_blank" class="badge bg-primary text-decoration-none mt-2">
+                                <i class="bi bi-download"></i> PDF da Emenda
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
     </div>
 </div>
-
-<h3 class="mt-4">Emendas</h3>
-{% if projeto.emendas.all %}
-    <ul class="list-group">
-        {% for emenda in projeto.emendas.all %}
-            <li class="list-group-item">
-                <strong>{{ emenda.titulo }}</strong> - {{ emenda.data_submissao|date:"d/m/Y" }}
-                {% if emenda.arquivo_pdf %}
-                    <a href="{{ emenda.arquivo_pdf.url }}" class="badge bg-secondary text-decoration-none ms-2">PDF</a>
-                {% endif %}
-                <br>
-                <small>{{ emenda.descricao }}</small>
-            </li>
-        {% endfor %}
-    </ul>
-{% else %}
-    <p class="text-muted">Nenhuma emenda registrada.</p>
-{% endif %}
 {% endblock %}

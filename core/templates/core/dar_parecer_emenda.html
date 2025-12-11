@@ -1,0 +1,26 @@
+{% extends 'core/base.html' %}
+{% block title %}Parecer Emenda{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card p-4">
+            <h3>Parecer da Emenda</h3>
+            <div class="alert alert-light border">
+                <strong>Emenda:</strong> {{ emenda.titulo }}<br>
+                <strong>Projeto Pai:</strong> {{ emenda.projeto.titulo }}<br>
+                <strong>Descrição:</strong> {{ emenda.descricao }}<br>
+                {% if emenda.arquivo_pdf %}
+                    <a href="{{ emenda.arquivo_pdf.url }}" target="_blank" class="btn btn-sm btn-outline-primary mt-2">Ver PDF</a>
+                {% endif %}
+            </div>
+            
+            <form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit" class="btn btn-primary mt-3">Registrar Decisão</button>
+                <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary mt-3 ms-2">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

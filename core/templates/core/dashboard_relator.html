@@ -3,55 +3,181 @@
 {% block title %}Dashboard Relator{% endblock %}
 
 {% block content %}
-    <h2>Dashboard do Relator</h2>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-person-badge"></i> Painel do Relator</h2>
+</div>
 
-    <section>
-        <h3>Meus Projetos Aguardando Parecer</h3>
-        {% if projetos_para_analisar %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>Título</th>
-                        <th>Submetido em</th>
-                        <th>Ação</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for projeto in projetos_para_analisar %}
-                    <tr>
-                        <td>{{ projeto.titulo }}</td>
-                        <td>{{ projeto.data_submissao|date:"d/m/Y H:i" }}</td>
-                        <td><a href="{% url 'dar_parecer' projeto.pk %}">Dar Parecer</a></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <p>Você não possui projetos pendentes para análise.</p>
-        {% endif %}
-    </section>
+<!-- SEÇÃO 1: PENDÊNCIAS -->
+<div class="card mb-4 border-primary shadow-sm">
+    <div class="card-header bg-primary text-white d-flex align-items-center">
+        <i class="bi bi-hourglass-split me-2"></i> 
+        <strong>Aguardando Sua Análise</strong>
+    </div>
+    
+    <div class="card-body p-0">
+        {% if projetos_para_analisar %} 
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 50px;" class="text-center">Tipo</th>
+                            <th>Título / Identificação</th>
+                            <th>Pesquisador</th>
+                            <th>Submissão</th>
+                            <th class="text-end">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in projetos_para_analisar %}
+                        <tr>
+                            <!-- 1. TIPO (P ou E) -->
+                            <td class="text-center">
+                                {% if item.tipo_item == 'P' %}
+                                    <span class="badge bg-primary rounded-circle" style="width: 30px; height: 30px; line-height: 22px;" title="Projeto">P</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark rounded-circle" style="width: 30px; height: 30px; line-height: 22px;" title="Emenda">E</span>
+                                {% endif %}
+                            </td>
 
-    <section>
-        <h3>Histórico dos Meus Pareceres</h3>
-        {% if meus_projetos_concluidos %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>Título</th>
-                        <th>Status Final</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for projeto in meus_projetos_concluidos %}
-                    <tr>
-                        <td>{{ projeto.titulo }}</td>
-                        <td>{{ projeto.get_status_display }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                            <!-- 2. TÍTULO E LINK CORRETO -->
+                            <td>
+                                {% if item.tipo_item == 'P' %}
+                                    <!-- Link para PROJETO -->
+                                    <strong>
+                                        <a href="{% url 'detalhe_projeto' item.id %}" class="text-decoration-none text-dark">
+                                            {{ item.titulo }}
+                                        </a>
+                                    </strong>
+                                    <br>
+                                    <small class="text-muted"><i class="bi bi-qr-code"></i> {{ item.caae }}</small>
+                                
+                                {% else %}
+                                    <!-- Link para EMENDA -->
+                                    <strong>
+                                        <a href="{% url 'detalhe_emenda' item.id %}" class="text-decoration-none text-dark">
+                                            Emenda: {{ item.titulo }}
+                                        </a>
+                                    </strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        Projeto Pai: <a href="{% url 'detalhe_projeto' item.projeto.id %}" class="text-decoration-none">{{ item.projeto.titulo }}</a>
+                                    </small>
+                                {% endif %}
+                            </td>
+
+                            <!-- 3. PESQUISADOR -->
+                            <td>
+                                {% if item.tipo_item == 'P' %}
+                                    {{ item.pesquisador.nome }}
+                                {% else %}
+                                    {{ item.projeto.pesquisador.nome }}
+                                {% endif %}
+                            </td>
+
+                            <!-- 4. DATA -->
+                            <td>
+                                <span class="badge bg-light text-dark border">
+                                    <i class="bi bi-calendar"></i> {{ item.data_submissao|date:"d/m/Y" }}
+                                </span>
+                            </td>
+
+                            <!-- 5. BOTÃO DE AÇÃO CORRETO -->
+                            <td class="text-end">
+                                {% if item.tipo_item == 'P' %}
+                                    <a href="{% url 'dar_parecer' item.id %}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-pencil-square"></i> Parecer Projeto
+                                    </a>
+                                {% else %}
+                                    <a href="{% url 'dar_parecer_emenda' item.id %}" class="btn btn-sm btn-warning text-dark">
+                                        <i class="bi bi-paperclip"></i> Parecer Emenda
+                                    </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         {% else %}
-            <p>Você ainda não emitiu pareceres.</p>
+            <div class="text-center p-5 text-muted">
+                <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+                <h5 class="mt-3">Tudo em dia!</h5>
+                <p>Você não possui pendências de análise no momento.</p>
+            </div>
         {% endif %}
-    </section>
+    </div>
+</div>
+
+<!-- SEÇÃO 2: HISTÓRICO -->
+<div class="card border-secondary shadow-sm">
+    <div class="card-header bg-secondary text-white d-flex align-items-center">
+        <i class="bi bi-clock-history me-2"></i>
+        <strong>Histórico de Pareceres Emitidos</strong>
+    </div>
+    
+    <div class="card-body p-0">
+        {% if meus_projetos_concluidos %} <!-- Contém P e E misturados -->
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 50px;" class="text-center">Tipo</th>
+                            <th>Título</th>
+                            <th>Sua Decisão</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in meus_projetos_concluidos %}
+                        <tr>
+                            <td class="text-center">
+                                {% if item.tipo_item == 'P' %}
+                                    <span class="badge bg-secondary rounded-circle" style="width: 30px; height: 30px; line-height: 22px;">P</span>
+                                {% else %}
+                                    <span class="badge bg-secondary rounded-circle" style="width: 30px; height: 30px; line-height: 22px;">E</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.tipo_item == 'P' %}
+                                    <a href="{% url 'detalhe_projeto' item.id %}" class="text-decoration-none text-dark fw-bold">
+                                        {{ item.titulo }}
+                                    </a>
+                                {% else %}
+                                    <a href="{% url 'detalhe_emenda' item.id %}" class="text-decoration-none text-dark fw-bold">
+                                        Emenda: {{ item.titulo }}
+                                    </a>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.tipo_item == 'P' %}
+                                    <!-- Status Projeto -->
+                                    {% if item.status == 'aprovado' %}
+                                        <span class="badge bg-success">Aprovado</span>
+                                    {% elif item.status == 'reprovado' %}
+                                        <span class="badge bg-danger">Reprovado</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ item.get_status_display }}</span>
+                                    {% endif %}
+                                {% else %}
+                                    <!-- Status Emenda -->
+                                    {% if item.status == 'aprovada' %}
+                                        <span class="badge bg-success">Aprovada</span>
+                                    {% elif item.status == 'reprovada' %}
+                                        <span class="badge bg-danger">Reprovada</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ item.get_status_display }}</span>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="p-4 text-center text-muted">
+                <p class="mb-0">Seu histórico de pareceres aparecerá aqui.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}

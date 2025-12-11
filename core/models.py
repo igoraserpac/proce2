@@ -37,7 +37,6 @@ class Projeto(models.Model):
         ('reprovado', 'Reprovado'),
     )
 
-    # --- Dados Básicos do Projeto ---
     titulo = models.CharField("Título do Projeto", max_length=255)
     descricao = models.TextField("Descrição")
     caae = models.CharField("CAAE", max_length=254, unique=True, help_text="Certificado de Apresentação para Apreciação Ética")
@@ -79,26 +78,38 @@ class Projeto(models.Model):
         return f"{self.titulo} ({self.caae})"
 
 class Emenda(models.Model):
-    """
-    Uma emenda é uma alteração ou adição a um projeto existente.
-    """
+    STATUS_EMENDA_CHOICES = (
+        ('pendente', 'Pendente'),
+        ('aprovada', 'Aprovada'),
+        ('reprovada', 'Reprovada'),
+    )
+
     projeto = models.ForeignKey(Projeto, on_delete=models.CASCADE, related_name='emendas')
     titulo = models.CharField("Título da Emenda", max_length=255)
     descricao = models.TextField("Descrição das Alterações")
     data_submissao = models.DateTimeField(auto_now_add=True)
     
-    # Campo de PDF para a Emenda
     arquivo_pdf = models.FileField(
         "Arquivo da Emenda (PDF)", 
         upload_to='emendas/pdfs/', 
         null=True, 
         blank=True
     )
+    
+    status = models.CharField(
+        "Status da Emenda", 
+        max_length=20, 
+        choices=STATUS_EMENDA_CHOICES, 
+        default='pendente'
+    )
 
-    aprovada = models.BooleanField("Emenda Aprovada?", default=False)
+    relator_parecer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='emendas_avaliadas')
+    data_parecer = models.DateTimeField(null=True, blank=True)
+    justificativa = models.TextField("Justificativa do Parecer", null=True, blank=True)
 
     def __str__(self):
-        return f"Emenda: {self.titulo} -> {self.projeto.titulo}"
+        return f"Emenda: {self.titulo} -> {self.projeto.titulo} ({self.get_status_display()})"
+
 
 
 class Parecer(models.Model):
@@ -109,12 +120,11 @@ class Parecer(models.Model):
     )
 
     projeto = models.ForeignKey(Projeto, on_delete=models.CASCADE, related_name='pareceres')
+    
     relator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pareceres_dados')
-    data_parecer = models.DateTimeField(default=timezone.now, verbose_name="Data do Parecer")
+    data_parecer = models.DateTimeField(auto_now_add=True, verbose_name="Data do Parecer")
     decisao = models.CharField(max_length=20, choices=DECISAO_CHOICES)
     justificativa = models.TextField()
 
     def __str__(self):
         return f"Parecer de {self.relator.username} para {self.projeto.titulo}"
-        
-    

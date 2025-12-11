@@ -1,0 +1,92 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Emenda: {{ emenda.titulo }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        
+        <!-- CABEÇALHO -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <span class="badge bg-warning text-dark mb-2">Emenda</span>
+                <h2 class="mb-0">{{ emenda.titulo }}</h2>
+            </div>
+            <div>
+                <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-house"></i> Dashboard
+                </a>
+                <a href="{% url 'detalhe_projeto' emenda.projeto.id %}" class="btn btn-outline-primary ms-2">
+                    <i class="bi bi-arrow-up-circle"></i> Ver Projeto Pai
+                </a>
+            </div>
+        </div>
+
+        <!-- DADOS DA EMENDA -->
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light">
+                <strong>Detalhes da Solicitação</strong>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Status:</strong> 
+                            <span class="badge {% if emenda.status == 'aprovada' %}bg-success{% elif emenda.status == 'reprovada' %}bg-danger{% else %}bg-info{% endif %}">
+                                {{ emenda.get_status_display }}
+                            </span>
+                        </p>
+                        <p class="mb-1"><strong>Data Submissão:</strong> {{ emenda.data_submissao|date:"d/m/Y H:i" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Projeto Original:</strong> {{ emenda.projeto.titulo }}</p>
+                        <p class="mb-1"><strong>CAAE Projeto:</strong> {{ emenda.projeto.caae }}</p>
+                    </div>
+                </div>
+
+                {% if emenda.arquivo_pdf %}
+                    <div class="mt-3">
+                        <a href="{{ emenda.arquivo_pdf.url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-file-earmark-pdf-fill"></i> Baixar PDF da Emenda
+                        </a>
+                    </div>
+                {% endif %}
+                
+                <div class="mt-4 p-3 bg-light rounded border">
+                    <h6>Descrição das Alterações:</h6>
+                    <p class="mb-0 text-justify">{{ emenda.descricao|linebreaksbr }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- PARECER (SE HOUVER) -->
+        {% if emenda.status != 'pendente' and emenda.relator_parecer %}
+        <div class="card border-{% if emenda.status == 'aprovada' %}success{% else %}danger{% endif %}">
+            <div class="card-header {% if emenda.status == 'aprovada' %}bg-success{% else %}bg-danger{% endif %} text-white">
+                <strong>Parecer Emitido</strong>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span><strong>Relator:</strong> {{ emenda.relator_parecer.first_name|default:emenda.relator_parecer.username }}</span>
+                    <small>{{ emenda.data_parecer|date:"d/m/Y H:i" }}</small>
+                </div>
+                <hr>
+                <div class="p-3 bg-light rounded fst-italic">
+                    "{{ emenda.justificativa }}"
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- AÇÃO PARA RELATOR/GESTOR (SE PENDENTE) -->
+        {% if emenda.status == 'pendente' %}
+            <div class="alert alert-info mt-4 d-flex justify-content-between align-items-center">
+                <span>Esta emenda está aguardando análise.</span>
+                <a href="{% url 'dar_parecer_emenda' emenda.id %}" class="btn btn-dark">
+                    <i class="bi bi-pencil-square"></i> Emitir Parecer
+                </a>
+            </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

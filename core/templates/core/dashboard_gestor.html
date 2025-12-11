@@ -55,36 +55,33 @@
             </div>
         </div>
 
-        <!-- Sub-Abas -->
+        <!-- Sub-Abas (Pills) -->
         <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
-            <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pills-aguardando">Aguardando <span class="badge bg-secondary ms-1">{{ projetos_para_designar|length }}</span></button></li>
-            <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pills-analise">Em Análise <span class="badge bg-secondary ms-1">{{ projetos_em_analise|length }}</span></button></li>
-            <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pills-concluidos">Concluídos <span class="badge bg-secondary ms-1">{{ projetos_concluidos|length }}</span></button></li>
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pills-aguardando">Aguardando <span class="badge bg-secondary ms-1">{{ itens_novos|length }}</span></button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pills-analise">Em Análise <span class="badge bg-secondary ms-1">{{ itens_em_analise|length }}</span></button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pills-concluidos">Concluídos <span class="badge bg-secondary ms-1">{{ itens_concluidos|length }}</span></button></li>
         </ul>
 
         <div class="tab-content">
-            <!-- TABELA 1: AGUARDANDO -->
+            <!-- TABELAS MODULARES -->
+            <!-- CORREÇÃO: Garantindo que 'lista_itens' receba a variável correta -->
             <div class="tab-pane fade show active" id="pills-aguardando">
-                {% include "core/includes/tabela_projetos.html" with lista_projetos=projetos_para_designar titulo="Aguardando Designação" cor="warning" tipo="aguardando" msg_vazia="Nenhum projeto novo." %}
+                {% include "core/includes/tabela_projetos.html" with lista_itens=itens_novos titulo="Aguardando Designação" cor="warning" tipo="aguardando" msg_vazia="Nenhum item aguardando." %}
             </div>
-
-            <!-- TABELA 2: EM ANÁLISE -->
             <div class="tab-pane fade" id="pills-analise">
-                {% include "core/includes/tabela_projetos.html" with lista_projetos=projetos_em_analise titulo="Em Análise" cor="info" tipo="analise" msg_vazia="Nenhum projeto em análise." %}
+                {% include "core/includes/tabela_projetos.html" with lista_itens=itens_em_analise titulo="Em Análise" cor="info" tipo="analise" msg_vazia="Nenhum item em análise." %}
             </div>
-
-            <!-- TABELA 3: CONCLUÍDOS -->
             <div class="tab-pane fade" id="pills-concluidos">
-                {% include "core/includes/tabela_projetos.html" with lista_projetos=projetos_concluidos titulo="Concluídos" cor="success" tipo="concluido" msg_vazia="Nenhum projeto concluído." %}
+                {% include "core/includes/tabela_projetos.html" with lista_itens=itens_concluidos titulo="Concluídos" cor="success" tipo="concluido" msg_vazia="Nenhum item concluído." %}
             </div>
         </div>
     </div>
 
-    <!-- ABA 2: RELATORES  -->
+    <!-- ABA 2: RELATORES -->
     <div class="tab-pane fade" id="relatores" role="tabpanel">
         <div class="card border-primary">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <strong>Visão Geral</strong>
+                <strong>Visão Geral dos Relatores</strong>
                 <a href="{% url 'exportar_relatores' %}" class="btn btn-light btn-sm text-primary"><i class="bi bi-file-earmark-spreadsheet"></i> Exportar Excel</a>
             </div>
             <div class="card-body">
@@ -96,7 +93,7 @@
                         <h2 class="accordion-header" id="heading{{ relator.id }}">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ relator.id }}">
                                 <span class="fw-bold relator-name">{{ relator.first_name|default:relator.username }}</span>
-                                <span class="badge bg-secondary ms-2">{{ relator.projetos_designados.count }}</span>
+                                <span class="badge bg-secondary ms-2">{{ relator.projetos_designados.count }} Projetos</span>
                                 <span class="ms-2 text-muted small relator-email">({{ relator.email }})</span>
                             </button>
                         </h2>
@@ -105,20 +102,23 @@
                                 {% if relator.projetos_designados.all %}
                                     <ul class="list-group">
                                     {% for projeto in relator.projetos_designados.all %}
-                                        <li class="list-group-item d-flex justify-content-between">
-                                            <span><strong>{{ projeto.titulo }}</strong> <small>({{ projeto.get_status_display }})</small></span>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            <span>
+                                                <strong>{{ projeto.titulo }}</strong> 
+                                                <small class="text-muted ms-2">({{ projeto.get_status_display }})</small>
+                                            </span>
                                             <a href="{% url 'detalhe_projeto' projeto.id %}" class="btn btn-sm btn-outline-primary">Ver</a>
                                         </li>
                                     {% endfor %}
                                     </ul>
                                 {% else %}
-                                    <p class="text-muted mb-0">Nenhum projeto.</p>
+                                    <p class="text-muted mb-0">Este relator não possui projetos designados no momento.</p>
                                 {% endif %}
                             </div>
                         </div>
                     </div>
                     {% empty %}
-                        <p class="text-muted text-center mb-0">Nenhum relator.</p>
+                        <p class="text-muted text-center mb-0">Nenhum relator cadastrado no sistema.</p>
                     {% endfor %}
                 </div>
             </div>
@@ -127,6 +127,7 @@
 </div>
 
 <script>
+    // Filtro de Projetos
     function filterProjects() {
         let filterValue = document.getElementById("searchInput").value.toLowerCase();
         let filterField = document.getElementById("filterField").value;
@@ -149,6 +150,7 @@
     document.getElementById("searchInput").addEventListener("keyup", filterProjects);
     document.getElementById("filterField").addEventListener("change", filterProjects);
 
+    // Filtro de Relatores
     document.getElementById('searchRelatorInput').addEventListener('keyup', function() {
         let filter = this.value.toLowerCase();
         let items = document.querySelectorAll('.relator-item');
