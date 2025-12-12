@@ -11,11 +11,6 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from core.models import Projeto
 from sistema_logs.models import Logs
 
-"""
-TODO:
-    Alterar o código para Português
-"""
-
 
 apreciacao_map = {
     'PO': 'Projeto Original de Centro Coordenador',
@@ -34,11 +29,13 @@ class EnumSituacao(StrEnum):
     APROVADO = "Relatoria Aprovada"
     REPROVADO = "Em relatoria"
 
+class InvalidInputError(Exception):
+    pass
+
 class PlataformaBrasilService:
     base_url = "https://plataformabrasil.saude.gov.br/"
-    instance = None
 
-    def __init__(self, headless = True):
+    def __init__(self, user_email = None, user_password = None, headless = True):
         chrome_options = Options()
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--no-sandbox")
@@ -48,19 +45,17 @@ class PlataformaBrasilService:
         self.driver = webdriver.Chrome(options=chrome_options)
         self.logged = False
         self.projects = None
-        self.user_email = None
-        self.user_password = None
+        self.user_email = user_email
+        self.user_password = user_password
 
-    @classmethod
-    def init(cls, headless = True):
-        if not cls.instance:
-            cls.instance = PlataformaBrasilService(headless)
-            cls.instance.open().check_alerts()
-
-        return cls.instance
+        try:
+            self.open().check_alerts()
+        
+        except Exception as e:
+            print(e)
 
     def open(self, url = base_url):
-        self.instance.driver.get(url)
+        self.driver.get(url)
         return self
     
     def open_local(self, path = base_url):
@@ -77,7 +72,6 @@ class PlataformaBrasilService:
                     (By.ID, "modalMsgContainer")
                 )
             )
-            
             msg_body = modal.find_element(By.CLASS_NAME, "rich-mpnl-body")
         
             print(msg_body.text)
@@ -96,22 +90,18 @@ class PlataformaBrasilService:
             print(e)
             return self
 
-    def login(self, email, password):
-        if not (self.user_email and self.user_password):
-            print("As credenciais devem ser informadas antes da chamada para o serviço.")
-            return self
-        
+    def login(self):
         try:
             email_input = self.driver.find_element(By.ID, "j_id19:email")
             password_input = self.driver.find_element(By.ID, "j_id19:senha")
             login_button = self.driver.find_element(By.CSS_SELECTOR, '[value="LOGIN"]')
 
-            email_input.send_keys(email)
-            password_input.send_keys(password)
+            email_input.send_keys(self.user_email)
+            password_input.send_keys(self.user_password)
             login_button.click()
             self.logger = True
 
-            if self.driver.find_element(By.ID, "detalheUsuario"):
+            if self.driver.find_element(By.ID, "menu_perfil"):
                 print("Login sucedido")
                 self.logged = True
 
@@ -123,18 +113,24 @@ class PlataformaBrasilService:
             print("Falha no login na Plataforma Brasil")
             
             try:
-                message = self.driver.find_element(By.ID, "j_id323:idTituloBloqueio_body")
-                inner_body = message.find_elements(By.TAG_NAME, "td")
-                for td in inner_body:
-                    print(f"{td.text}")
-                return self
-            
+                if (message_panel := self.driver.find_element(By.ID, "idPainelMensagem")):
+                    print(f"Erro: \033[31m{message_panel.text}\033[0m")
+                    raise InvalidInputError(message_panel.text or "Erro ao conectar")
+                
+                else:
+                    raise NoSuchElementException
+                
+            except InvalidInputError as e:
+                print(f"Erro: \033[31m{e}\033[0m")
+                raise e
+
             except:
                 print("Nao foi possivel encontrar a mensagem de bloqueio")
-                sleep(5)
+                raise Exception("Erro ao conectar")
                 
         except Exception as e:
-            return self
+            print(f"\033[31m{e}\033[0m")
+            raise Exception("Erro ao conectar")
     
     def search_plubic_by_name(self, name):
         search_menu_button = self.driver.find_element(By.CSS_SELECTOR, "a.pesquisas.das-texto.formatoGG")
@@ -181,14 +177,32 @@ class PlataformaBrasilService:
             'acao': 12
         }
 
-        table = self.driver.find_element(By.ID, "formConsultarProtocoloPesquisa:tabelaResultado:tb")
-        if not table:
-            print("Tabela nao encontrada")
-            return self
-        rows = table.find_elements(By.TAG_NAME, "tr")
-        row_count = len(rows)
+        try:
+            cep_tab = self.driver.find_element(By.ID, "formPesquisador:idLinkAbaCepAtiva")
+            cep_tab.click()
+            sleep(2)
 
+            checkbox = self.driver.find_element(By.ID, "formConsultarProtocoloPesquisa:j_id323:1:idItem")
+            search_button = self.driver.find_element(By.ID, "formConsultarProtocoloPesquisa:idBtnBuscar")
+            
+            checkbox.click()            
+            search_button.click()
+            
+            sleep(5)
 
+            table = self.driver.find_element(By.ID, "formPesquisador:tabelaResultado:tb")
+            sleep(3)
+
+            table = self.driver.find_element(By.ID, "formConsultarProtocoloPesquisa:tabelaResultado:tb")
+            if not table:
+                print("Tabela nao encontrada")
+                return self
+            rows = table.find_elements(By.TAG_NAME, "tr")
+            row_count = len(rows)
+
+        except:
+            pass
+    
         for i in range(len(row_count)):
             try:
                 table = self.driver.find_element(By.ID, "formConsultarProtocoloPesquisa:tabelaResultado:tb")
@@ -254,7 +268,3 @@ class PlataformaBrasilService:
     
         return self
     
-    def receber_credenciais(self, email, senha):
-        self.user_email = email
-        self.user_password = senha
-        return self

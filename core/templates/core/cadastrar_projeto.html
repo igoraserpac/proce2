@@ -41,6 +41,13 @@
         })
         .then(res => res.json())
         .then(data => {
+            console.log(data);
+            if(data.status === 'error') {
+                msgDiv.classList.remove('d-none', 'alert-success');
+                msgDiv.classList.add('alert-danger');
+                msgDiv.innerText = data.msg;
+                return;
+            }
             msgDiv.classList.remove('d-none', 'alert-danger');
             msgDiv.classList.add('alert-success');
             msgDiv.innerText = data.msg;

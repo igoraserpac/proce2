@@ -1,19 +1,26 @@
-from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseForbidden, JsonResponse, HttpResponse
-from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth.models import User
-import json
 import csv
 import io
+import json
+
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
+from django.http import HttpResponseForbidden, JsonResponse, HttpResponse
+from django.shortcuts import render, get_object_or_404, redirect
+from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+
 from functools import wraps
-from .models import Projeto, Pesquisador, Emenda, Parecer
-from .forms import DesignarRelatorForm, ParecerForm, ProjetoForm, EmendaForm, CadastroRelatorForm
-from emails.gerenciadorEmails import GerenciadorEmails
 from itertools import chain
 from operator import attrgetter
-from .forms import ParecerEmendaForm 
+from webdriver.plataforma_brasil import PlataformaBrasilService
+from .forms import (
+    CadastroRelatorForm,
+    DesignarRelatorForm, 
+    ParecerForm, ParecerEmendaForm,
+    ProjetoForm, EmendaForm,
+)
+from .models import Projeto, Pesquisador, Emenda
+
 
 # --- DECORATORS E AUXILIARES ---
 def grupo_requerido(grupos):
@@ -79,7 +86,7 @@ def processar_csv(csv_file):
         return 0
 
 
-login_required
+@login_required
 def dashboard(request):
     # 1. VISÃO DO GESTOR
     if is_gestor(request.user):
@@ -273,11 +280,15 @@ def receber_credenciais_pb(request):
             data = json.loads(request.body)
             email = data.get('email')
             senha = data.get('senha')
-            PlataformaBrasilService.receber_credenciais(email, senha)
+            pb_service = PlataformaBrasilService(user_email=email, user_password=senha, headless=True)
+            pb_service.login()
+            if pb_service.logged:
+                pb_service.fetch_projects_form_table()
+            
             return JsonResponse({'status': 'ok', 'msg': 'Credenciais recebidas com sucesso!'})
         except Exception as e:
-            return JsonResponse({'status': 'error', 'msg': str(e)}, status=500)
-    return JsonResponse({'status': 'error'}, status=400)
+            return JsonResponse({'status': 'error', 'msg': str(e)}, status=400)
+    return JsonResponse({'status': 'error', 'msg': str(e)}, status=400)
 
 # --- FUNÇÃO DE EXPORTAÇÃO DE CSV---
 @login_required
