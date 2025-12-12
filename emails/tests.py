@@ -51,13 +51,15 @@ class RotinaDiariaTest(TestCase):
 
         self.relator = User.objects.create(username="relator")
 
-        Parecer.objects.create(
+        parecer = Parecer.objects.create(
             projeto=self.projeto_pend,
             relator=self.relator,
             decisao="pendente",
             justificativa="Um teste",
-            data_parecer=hoje - timedelta(days=26)
+            data_parecer=hoje - timedelta(days=27)
         )
+
+        print(parecer.data_parecer)
 
     def test_rotina(self):
         with patch("emails.gerenciadorEmails.GerenciadorEmails.notificacao_relatorio_aprovado") as mock_aprovado, \
@@ -66,10 +68,8 @@ class RotinaDiariaTest(TestCase):
             Command().handle()
 
             # Assert para projetos aprovados
-            self.assertTrue(mock_aprovado.called)
-
-            # Assert para pendentes
-            self.assertTrue(mock_pendente.called)
+            mock_aprovado.assert_called()
+            mock_pendente.assert_called()
 
     def test_envio(self):
             GerenciadorEmails.notificacao_relatorio_aprovado(self.pesq.nome, self.projeto_180.titulo, self.pesq.email, 185, TipoRelatorio.PARCIAL)

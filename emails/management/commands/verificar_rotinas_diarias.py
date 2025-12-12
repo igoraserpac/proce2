@@ -92,6 +92,7 @@ class Command(BaseCommand):
 
             if enviar:
                 try:
+                    print("try")
                     self.stdout.write(f"Enviando aviso de pendência para {projeto.titulo}. Restam: {dias_restantes} dias.")
                     
                     # Usa o método estático que você já tem no gerenciadorEmails.py
