@@ -14,6 +14,9 @@ from pathlib import Path
 from decouple import config, Csv
 
 # Config emails
+ADMIN_EMAIL = config('ADMIN_EMAIL')
+ADMIN_PASSWORD = config('ADMIN_PASSWORD')
+
 EMAIL_BACKEND = config('EMAIL_BACKEND')
 EMAIL_HOST = config('EMAIL_HOST')
 EMAIL_PORT = config('EMAIL_PORT', cast=int)
