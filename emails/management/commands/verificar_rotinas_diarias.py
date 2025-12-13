@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from datetime import timedelta
-from core.models import Projeto, Parecer
+from core.models import Projeto
 from emails.gerenciadorEmails import GerenciadorEmails, TipoRelatorio
 
 class Command(BaseCommand):
@@ -19,7 +19,8 @@ class Command(BaseCommand):
         """
         Regra: 
         - 180 dias após aprovação: cobrar relatório parcial.
-        - 365 dias após aprovação: cobrar relatório final ou parcial.
+        - 365 dias após aprovação com entrega parcial (e sem final): cobrar relatório final ou parcial.
+        - 365 ou mais dias após aprovação sem entrega parcial (e sem final): cobrar relatório final ou parcial.
         """
         hoje = timezone.now().date()
         
@@ -29,17 +30,24 @@ class Command(BaseCommand):
 
         # Buscar projetos aprovados nessas datas exatas
         projetos_180 = Projeto.objects.filter(status='aprovado', data_aprovacao=data_180_dias, rel_parc=False)
-        projetos_365 = Projeto.objects.filter(status='aprovado', data_aprovacao=data_365_dias) # Final cobra mesmo se entregou parcial antes
+        projetos_365_unico = Projeto.objects.filter(status='aprovado', data_aprovacao=data_365_dias, rel_parc=True)
+        projetos_365_recorrente = Projeto.objects.filter(status='aprovado', data_aprovacao__lte=data_365_dias, rel_parc=False)
 
         # Envio 180 dias
         for proj in projetos_180:
             self.enviar_cobranca_relatorio(proj, 30, TipoRelatorio.PARCIAL.value)
 
-        # Envio 365 dias (1 ano)
-        for proj in projetos_365:
+        # Envio 365 dias com entrega parcial (1 ano)
+        for proj in projetos_365_unico:
             # Se já entregou o final, não precisa cobrar
             if not proj.rel_final:
-                self.enviar_cobranca_relatorio(proj, 30, TipoRelatorio.QUALQUER.value)
+                self.enviar_cobranca_relatorio(proj, 30, TipoRelatorio.FINAL)
+
+        # Envio 365 dias sem entrega parcial (1 ano)
+        for proj in projetos_365_recorrente:
+            # Se já entregou o final, não precisa cobrar
+            if not proj.rel_final:
+                self.enviar_cobranca_relatorio(proj, 30, TipoRelatorio.QUALQUER)
 
     def enviar_cobranca_relatorio(self, projeto, dias_prazo, tipo_texto):
         try:
@@ -65,7 +73,6 @@ class Command(BaseCommand):
         hoje = timezone.now() # Usamos datetime completo para comparar com o Parecer (que é DateTimeField)
 
         prazo_limite_dias = 30
-        inicio_aviso_dias = 25 # Começa a avisar no dia 26 (quando faltam 5 dias)
 
         for projeto in projetos_pendentes:
             # Descobre quando ficou pendente pegando o último parecer
@@ -80,14 +87,7 @@ class Command(BaseCommand):
 
             enviar = False
             
-            # Situação A: Faltam 5 dias ou menos (e ainda está no prazo)
-            if 0 <= dias_restantes <= 5: 
-                # Note: se dias_restantes for 5, significa que passaram 25 dias.
-                # O requisito diz "nos 5 últimos dias".
-                enviar = True
-            
-            # Situação B: Estourou o prazo (dias_restantes < 0)
-            elif dias_restantes == -1: 
+            if dias_restantes <= 5: 
                 enviar = True
 
             if enviar:
